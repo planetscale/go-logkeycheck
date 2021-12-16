@@ -14,9 +14,21 @@ builds:
     binary: "go-logkeycheck"
 
 archives:
-  - format_overrides:
+  # binary-only releases - all platforms
+  - id: binaries
+    format: binary
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+  # archive releases containing: binary, readme, and license. tarballs (macos, linux), zip (windows)
+  - id: archives
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    replacements:
+      386: i386
+    format_overrides:
       - goos: windows
         format: zip
+
+checksum:
+  name_template: "checksums.txt"
 
 snapshot:
   name_template: "{{ .Tag }}-next"
