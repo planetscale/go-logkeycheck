@@ -74,8 +74,8 @@ jobs:
       - if: github.ref == 'refs/heads/main'
         name: run autotag to increment version (main branch only)
         run: |
-          curl -sL https://git.io/autotag-install | sudo sh -s -- -b /usr/local/bin
-          autotag
+          go install github.com/pantheon-systems/autotag/autotag@latest
+          autotag -b main
 
       # run goreleaser to generate release artifacts on main branch builds.
       - if: github.ref == 'refs/heads/main'
