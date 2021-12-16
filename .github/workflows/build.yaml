@@ -1,0 +1,81 @@
+name: build
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - uses: actions/checkout@v2
+
+      - uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.43
+          skip-go-installation: true
+          skip-pkg-cache: true
+
+      - name: test
+        run: make test
+
+      - name: build
+        run: make build
+
+  release:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - uses: actions/checkout@v2
+        with:
+          # fetch-depth needed to create full clone so that autotag and goreleaser can increment the version tag and generate a changelog
+          fetch-depth: 0
+
+      - uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: install goreleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          install-only: true
+          version: 1.1.0
+
+      - run: goreleaser check
+
+      # run goreleaser in snapshot mode on non-main branches to test/verify the goreleaser config is working.
+      - if: github.ref != 'refs/heads/main'
+        name: test goreleaser build (non-main branches)
+        run: goreleaser --rm-dist --snapshot
+
+      # auto increment version tag on main branch builds.
+      - if: github.ref == 'refs/heads/main'
+        name: run autotag to increment version (main branch only)
+        run: |
+          curl -sL https://git.io/autotag-install | sudo sh -s -- -b /usr/local/bin
+          autotag
+
+      # run goreleaser to generate release artifacts on main branch builds.
+      - if: github.ref == 'refs/heads/main'
+        name: build and push release artifacts (main branch only)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: goreleaser
